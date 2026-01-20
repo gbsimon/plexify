@@ -43,7 +43,7 @@ struct ContentView: View {
                 .cornerRadius(12)
                 
             case .preview:
-                if let plan = viewModel.renamePlan {
+                if viewModel.renamePlan != nil {
                     ScrollView {
                         PreviewView(viewModel: viewModel)
                     }

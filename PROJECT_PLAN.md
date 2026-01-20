@@ -77,7 +77,7 @@ Assumptions:
 - Progress indicator and summary report.
 - Acceptance: Clear success/failure messaging.
 
-### Epic 5 — Testing & QA
+### Epic 5 — Testing & QA (DONE)
 5.1 Unit tests
 - Naming rules, sanitization, plan creation.
 
