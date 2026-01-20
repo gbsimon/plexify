@@ -11,6 +11,11 @@ This repository currently contains a starter file structure and example SwiftUI 
 4. Replace the generated files with the contents from `PlexifyApp/` in this repo.
 5. Build and run from Xcode (Cmd+R).
 
+## TMDb API Key
+This app uses TMDb to look up IMDb IDs. Set the API key as an environment variable in your Xcode scheme:
+- Key: `TMDB_API_KEY`
+- Value: your TMDb v3 API key
+
 ## Where to Add Code
 - UI: `PlexifyApp/ContentView.swift`, `PlexifyApp/DragDrop/DropZoneView.swift`
 - Naming logic: `PlexifyApp/Services/FolderRenamer.swift`

@@ -10,7 +10,7 @@ Assumptions:
 
 ## Epics and Tickets
 
-### Epic 0 — Definition & Scope
+### Epic 0 — Definition & Scope (DONE)
 0.1 Requirements baseline
 - Capture supported patterns (movies + TV) from `@docs`.
 - Define what is out-of-scope (e.g., music libraries, extras). 
@@ -20,7 +20,7 @@ Assumptions:
 - Define tokens and placeholders (Title, Year, IMDb ID, Edition, Season, Episode).
 - Acceptance: `rules.md` with examples for each token.
 
-### Epic 1 — Core Models & Naming Engine
+### Epic 1 — Core Models & Naming Engine (DONE)
 1.1 Data models
 - Create `MediaType`, `MediaItem`, `Episode`, `RenamePlan`.
 - Acceptance: Models compile and map to movie + TV cases.

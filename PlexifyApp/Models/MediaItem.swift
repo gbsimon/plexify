@@ -5,4 +5,5 @@ struct MediaItem {
     let title: String
     let year: Int?
     let imdbID: String?
+    let mediaType: MediaType
 }
