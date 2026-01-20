@@ -64,7 +64,7 @@ Assumptions:
 - UI field for manual IMDb ID entry.
 - Acceptance: Manual ID overrides API result.
 
-### Epic 4 — macOS App UI (SwiftUI)
+### Epic 4 — macOS App UI (SwiftUI) (DONE)
 4.1 Drag & drop
 - Accept folder drop only; show validation errors.
 - Acceptance: Dropping folder updates status.

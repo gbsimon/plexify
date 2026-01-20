@@ -146,8 +146,6 @@ struct FolderScanner {
         files: [URL],
         subdirectories: [URL]
     ) -> MediaType {
-        let folderName = folderURL.lastPathComponent.lowercased()
-        
         // Check for TV show indicators
         // 1. Season folders (Season 01, Season 1, Season 02, etc.)
         let hasSeasonFolders = subdirectories.contains { url in
