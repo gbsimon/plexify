@@ -35,7 +35,7 @@ Assumptions:
 - Strip invalid characters for macOS filesystems.
 - Acceptance: Tests for invalid symbols and whitespace collapse.
 
-### Epic 2 — Scan, Preview, Rename
+### Epic 2 — Scan, Preview, Rename (DONE)
 2.1 Folder scan
 - Detect media files; ignore non-media and excluded folders (e.g., Featurettes).
 - Classify movie vs TV by folder/filename patterns.

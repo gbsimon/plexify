@@ -5,7 +5,8 @@ struct RenamePlan {
     let targetFolderName: String
     let fileRenames: [FileRename]
     let seasonFolders: [SeasonFolder]? // For TV shows
-
+    let warnings: [String] // Warnings about the rename plan
+    
     struct FileRename {
         let originalURL: URL
         let targetName: String
@@ -21,11 +22,13 @@ struct RenamePlan {
         originalFolderURL: URL,
         targetFolderName: String,
         fileRenames: [FileRename],
-        seasonFolders: [SeasonFolder]? = nil
+        seasonFolders: [SeasonFolder]? = nil,
+        warnings: [String] = []
     ) {
         self.originalFolderURL = originalFolderURL
         self.targetFolderName = targetFolderName
         self.fileRenames = fileRenames
         self.seasonFolders = seasonFolders
+        self.warnings = warnings
     }
 }
