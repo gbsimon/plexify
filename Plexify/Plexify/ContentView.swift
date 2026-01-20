@@ -20,6 +20,22 @@ struct ContentView: View {
             // Main content
             switch viewModel.currentState {
             case .idle:
+                if !viewModel.hasLibraryAccess {
+                    VStack(spacing: 12) {
+                        Text("Grant access to your media root folder to continue.")
+                            .foregroundColor(.plexTextSecondary)
+                        if let message = viewModel.libraryAccessMessage {
+                            Text(message)
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                        Button("Grant Access") {
+                            viewModel.requestLibraryAccess()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.plexOrange)
+                    }
+                }
                 DropZoneView(
                     statusText: $statusText,
                     errorMessage: $viewModel.errorMessage,
@@ -59,6 +75,12 @@ struct ContentView: View {
         .padding(32)
         .frame(minWidth: 600, minHeight: 500)
         .background(Color.plexDark)
+        .onAppear {
+            viewModel.ensureLibraryAccess()
+        }
+        .onChange(of: viewModel.hasLibraryAccess) { hasAccess in
+            statusText = hasAccess ? "Drop a folder to begin." : "Grant access to your media folder to continue."
+        }
     }
 }
 

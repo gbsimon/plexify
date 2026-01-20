@@ -158,7 +158,28 @@ struct FolderRenamer {
 
     func apply(plan: RenamePlan) throws {
         let fileManager = FileManager.default
+        
+        // Ensure we have access to the original folder AND parent directory (important for network volumes)
+        let originalAccessing = plan.originalFolderURL.startAccessingSecurityScopedResource()
         let parentURL = plan.originalFolderURL.deletingLastPathComponent()
+        let parentAccessing = parentURL.startAccessingSecurityScopedResource()
+        
+        if originalAccessing {
+            print("🔐 Started accessing original folder for rename operation")
+        }
+        if parentAccessing {
+            print("🔐 Started accessing parent directory for rename operation")
+        }
+        
+        defer {
+            if originalAccessing {
+                plan.originalFolderURL.stopAccessingSecurityScopedResource()
+            }
+            if parentAccessing {
+                parentURL.stopAccessingSecurityScopedResource()
+            }
+        }
+        
         let targetFolderURL = parentURL.appendingPathComponent(plan.targetFolderName)
         
         // Track operations for rollback
@@ -166,23 +187,55 @@ struct FolderRenamer {
         var folderMoved = false
         
         do {
-            // Create target folder if it doesn't exist
-            if !fileManager.fileExists(atPath: targetFolderURL.path) {
-                try fileManager.createDirectory(at: targetFolderURL, withIntermediateDirectories: true)
-                operations.append(.createdDirectory(targetFolderURL))
+            // Verify original folder is accessible
+            guard fileManager.fileExists(atPath: plan.originalFolderURL.path) else {
+                throw RenameError.applyFailed("Original folder not found or not accessible. Please ensure you have permission to access this folder.")
             }
             
-            // Move folder if it's different
-            if plan.originalFolderURL.lastPathComponent != plan.targetFolderName {
-                try fileManager.moveItem(at: plan.originalFolderURL, to: targetFolderURL)
-                operations.append(.movedFolder(from: plan.originalFolderURL, to: targetFolderURL))
-                folderMoved = true
+            // Check if target folder already exists
+            let targetExists = fileManager.fileExists(atPath: targetFolderURL.path)
+            
+            // Check if source and target are the same (already renamed)
+            let sourceAndTargetSame = plan.originalFolderURL.path == targetFolderURL.path
+            
+            if sourceAndTargetSame {
+                // Source and target are the same path - folder already has target name
+                print("ℹ️ Folder already has the target name, skipping folder rename")
+                folderMoved = false
+            } else if targetExists {
+                // Target exists but is different folder - check if it's the same folder (resolved path)
+                var isSameFolder = false
+                if let sourceResourceValues = try? plan.originalFolderURL.resourceValues(forKeys: [.fileResourceIdentifierKey]),
+                   let targetResourceValues = try? targetFolderURL.resourceValues(forKeys: [.fileResourceIdentifierKey]),
+                   let sourceID = sourceResourceValues.fileResourceIdentifier,
+                   let targetID = targetResourceValues.fileResourceIdentifier {
+                    isSameFolder = sourceID.isEqual(targetID)
+                }
+                
+                if isSameFolder {
+                    print("ℹ️ Target folder is the same as source (resolved path), skipping folder rename")
+                    folderMoved = false
+                } else {
+                    // Different folder with same name - error
+                    throw RenameError.applyFailed("A folder named \"\(plan.targetFolderName)\" already exists in \"\(parentURL.lastPathComponent)\". Please rename or remove the existing folder first.")
+                }
+            } else {
+                // Target doesn't exist, proceed with rename
+                if plan.originalFolderURL.lastPathComponent != plan.targetFolderName {
+                    print("📦 Moving folder: \(plan.originalFolderURL.lastPathComponent) → \(plan.targetFolderName)")
+                    try fileManager.moveItem(at: plan.originalFolderURL, to: targetFolderURL)
+                    operations.append(.movedFolder(from: plan.originalFolderURL, to: targetFolderURL))
+                    folderMoved = true
+                }
             }
+            
+            // Use the correct folder URL for file operations (target if moved, original if not)
+            let workingFolderURL = folderMoved ? targetFolderURL : plan.originalFolderURL
 
             // Create season folders for TV shows
             if let seasonFolders = plan.seasonFolders {
                 for seasonFolder in seasonFolders {
-                    let seasonURL = targetFolderURL.appendingPathComponent(seasonFolder.targetName)
+                    let seasonURL = workingFolderURL.appendingPathComponent(seasonFolder.targetName)
                     if !fileManager.fileExists(atPath: seasonURL.path) {
                         try fileManager.createDirectory(at: seasonURL, withIntermediateDirectories: true)
                         operations.append(.createdDirectory(seasonURL))
@@ -192,29 +245,39 @@ struct FolderRenamer {
 
             // Rename files
             for rename in plan.fileRenames {
-                let originalInNewFolder = targetFolderURL.appendingPathComponent(rename.originalURL.lastPathComponent)
+                // Find the original file location (in the working folder)
+                let originalFileURL = workingFolderURL.appendingPathComponent(rename.originalURL.lastPathComponent)
                 
                 // Determine target location (season folder for TV shows, root for movies)
                 let targetLocation: URL
                 if let seasonNumber = rename.seasonNumber,
                    let seasonFolder = plan.seasonFolders?.first(where: { $0.seasonNumber == seasonNumber }) {
-                    targetLocation = targetFolderURL.appendingPathComponent(seasonFolder.targetName)
+                    targetLocation = workingFolderURL.appendingPathComponent(seasonFolder.targetName)
                 } else {
-                    targetLocation = targetFolderURL
+                    targetLocation = workingFolderURL
                 }
                 
                 let targetURL = targetLocation.appendingPathComponent(rename.targetName)
                 
-                // Only move if the name or location changed
-                if originalInNewFolder.path != targetURL.path {
-                    try fileManager.moveItem(at: originalInNewFolder, to: targetURL)
-                    operations.append(.movedFile(from: originalInNewFolder, to: targetURL))
+                // Only rename if the name or location changed
+                if originalFileURL.path != targetURL.path {
+                    // Check if target file already exists
+                    if fileManager.fileExists(atPath: targetURL.path) {
+                        print("⚠️ Target file already exists: \(rename.targetName), skipping...")
+                        continue
+                    }
+                    
+                    print("📝 Renaming file: \(rename.originalURL.lastPathComponent) → \(rename.targetName)")
+                    try fileManager.moveItem(at: originalFileURL, to: targetURL)
+                    operations.append(.movedFile(from: originalFileURL, to: targetURL))
+                } else {
+                    print("ℹ️ File already has target name, skipping: \(rename.targetName)")
                 }
             }
         } catch {
             // Rollback on error
             try rollback(operations: operations, folderMoved: folderMoved, originalFolderURL: plan.originalFolderURL, targetFolderURL: targetFolderURL)
-            throw RenameError.applyFailed(error)
+            throw RenameError.applyFailed(error.localizedDescription)
         }
     }
     
@@ -264,12 +327,12 @@ struct FolderRenamer {
 }
 
 enum RenameError: LocalizedError {
-    case applyFailed(Error)
+    case applyFailed(String)
     
     var errorDescription: String? {
         switch self {
-        case .applyFailed(let error):
-            return "Failed to apply rename plan: \(error.localizedDescription)"
+        case .applyFailed(let message):
+            return "Failed to apply rename plan: \(message)"
         }
     }
 }
