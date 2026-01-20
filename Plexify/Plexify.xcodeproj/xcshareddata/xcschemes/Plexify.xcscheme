@@ -78,7 +78,7 @@
          <EnvironmentVariable
             key = "TMDB_API_KEY"
             value = "e10bf17a155c52b53f1c304d95844d75"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>

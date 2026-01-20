@@ -5,6 +5,7 @@ struct MediaItem {
     let title: String
     let year: Int?
     let imdbID: String?
+    let tmdbID: Int?
     let mediaType: MediaType
     let edition: String? // For movies: "Director's Cut", "Extended Edition", etc.
     let isManualImdbID: Bool // True if IMDb ID was manually entered (overrides API lookup)
@@ -18,6 +19,7 @@ struct MediaItem {
         year: Int? = nil,
         imdbID: String? = nil,
         mediaType: MediaType,
+        tmdbID: Int? = nil,
         edition: String? = nil,
         episodes: [Episode]? = nil,
         isManualImdbID: Bool = false
@@ -26,6 +28,7 @@ struct MediaItem {
         self.title = title
         self.year = year
         self.imdbID = imdbID
+        self.tmdbID = tmdbID
         self.mediaType = mediaType
         self.edition = edition
         self.episodes = episodes
@@ -40,6 +43,7 @@ struct MediaItem {
             year: year,
             imdbID: imdbID,
             mediaType: mediaType,
+            tmdbID: tmdbID,
             edition: edition,
             episodes: episodes,
             isManualImdbID: true

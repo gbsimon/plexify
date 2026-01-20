@@ -3,17 +3,33 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var viewModel = PlexifyViewModel()
     @State private var statusText = "Drop a folder to begin."
+    @State private var isShowingSettings = false
 
     var body: some View {
         VStack(spacing: 24) {
             // Header
-            VStack(spacing: 8) {
-                Text("Plexify")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(.plexTextPrimary)
-                Text("Rename media folders for Plex")
-                    .font(.subheadline)
-                    .foregroundColor(.plexTextSecondary)
+            HStack(alignment: .top) {
+                VStack(spacing: 8) {
+                    Text("Plexify")
+                        .font(.system(size: 36, weight: .bold))
+                        .foregroundColor(.plexTextPrimary)
+                    Text("Rename media folders for Plex")
+                        .font(.subheadline)
+                        .foregroundColor(.plexTextSecondary)
+                }
+                Spacer()
+                Button {
+                    isShowingSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.plexTextSecondary)
+                        .padding(8)
+                        .background(Color.plexDarkSecondary)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Settings")
             }
             .padding(.top, 8)
             
@@ -78,8 +94,13 @@ struct ContentView: View {
         .onAppear {
             viewModel.ensureLibraryAccess()
         }
-        .onChange(of: viewModel.hasLibraryAccess) { hasAccess in
-            statusText = hasAccess ? "Drop a folder to begin." : "Grant access to your media folder to continue."
+        .onChange(of: viewModel.hasLibraryAccess) {
+            statusText = viewModel.hasLibraryAccess
+                ? "Drop a folder to begin."
+                : "Grant access to your media folder to continue."
+        }
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView()
         }
     }
 }

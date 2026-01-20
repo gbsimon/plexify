@@ -44,7 +44,7 @@ struct PlexNameFormatter {
         var components: [String] = []
         
         // Title
-        let sanitizedTitle = PathSanitizer.sanitize(title)
+        let sanitizedTitle = PathSanitizer.sanitize(sanitizeShowTitle(title))
         components.append(sanitizedTitle)
         
         // Year in parentheses
@@ -79,7 +79,7 @@ struct PlexNameFormatter {
         var components: [String] = []
         
         // Show title
-        let sanitizedShowTitle = PathSanitizer.sanitize(showTitle)
+        let sanitizedShowTitle = PathSanitizer.sanitize(sanitizeShowTitle(showTitle))
         components.append(sanitizedShowTitle)
         
         // Year in parentheses
@@ -115,7 +115,7 @@ struct PlexNameFormatter {
         var components: [String] = []
         
         // Show title
-        let sanitizedShowTitle = PathSanitizer.sanitize(showTitle)
+        let sanitizedShowTitle = PathSanitizer.sanitize(sanitizeShowTitle(showTitle))
         components.append(sanitizedShowTitle)
         
         // Year in parentheses
@@ -139,5 +139,16 @@ struct PlexNameFormatter {
         
         let baseName = components.joined(separator: " ")
         return fileExtension.isEmpty ? baseName : "\(baseName).\(fileExtension)"
+    }
+
+    private static func sanitizeShowTitle(_ title: String) -> String {
+        var cleaned = title
+        if let braceIndex = cleaned.firstIndex(of: "{") {
+            cleaned = String(cleaned[..<braceIndex])
+        }
+        cleaned = cleaned.replacingOccurrences(of: #"\((\d{4})\)"#, with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"\s(19\d{2}|20\d{2})$"#, with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

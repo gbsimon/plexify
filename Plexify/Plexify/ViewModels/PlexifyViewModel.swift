@@ -101,8 +101,9 @@ class PlexifyViewModel: ObservableObject {
             
             // Extract title from folder name (basic implementation)
             let folderName = url.lastPathComponent
+            let existingImdbID = extractImdbID(from: folderName)
             let title = extractTitle(from: folderName)
-            let year = extractYear(from: folderName)
+            var year = extractYear(from: folderName)
             
             print("📝 Extracted metadata:")
             print("   Title: \(title)")
@@ -113,39 +114,113 @@ class PlexifyViewModel: ObservableObject {
                 originalFolderURL: url,
                 title: title,
                 year: year,
-                imdbID: nil,
-                mediaType: result.mediaType
+                imdbID: existingImdbID,
+                mediaType: result.mediaType,
+                tmdbID: nil,
+                episodes: result.episodes
             )
-            
-            // Try to lookup IMDb ID
-            print("🔍 Looking up IMDb ID via TMDb API...")
-            do {
-                if let imdbID = try await lookupService.resolveImdbID(for: mediaItem) {
-                    print("✅ Found IMDb ID: \(imdbID)")
-                    mediaItem = MediaItem(
+
+            // Try to lookup IMDb ID if not already present
+            if existingImdbID == nil {
+                print("🔍 Looking up IMDb ID via TMDb API...")
+                do {
+                    if let result = try await lookupService.resolveImdbResult(for: mediaItem) {
+                        print("✅ Found IMDb ID: \(result.imdbID)")
+                        if year == nil, let suggestedYear = result.year {
+                            year = suggestedYear
+                        }
+                        var episodes = mediaItem.episodes
+                        if mediaItem.mediaType == .tvShow,
+                           let tmdbID = result.tmdbID,
+                           let currentEpisodes = episodes {
+                            episodes = await lookupService.enrichEpisodesForTVShow(
+                                tmdbID: tmdbID,
+                                episodes: currentEpisodes
+                            )
+                        }
+                        mediaItem = MediaItem(
+                            originalFolderURL: url,
+                            title: title,
+                            year: year,
+                            imdbID: result.imdbID,
+                            mediaType: mediaItem.mediaType,
+                            tmdbID: result.tmdbID,
+                            episodes: episodes,
+                            isManualImdbID: false
+                        )
+                    } else {
+                        print("⚠️ No IMDb ID found - user can manually enter one")
+                    }
+                } catch {
+                    print("❌ IMDb lookup failed: \(error.localizedDescription)")
+                    if let lookupError = error as? ImdbLookupError {
+                        switch lookupError {
+                        case .missingApiKey:
+                            print("   ⚠️ TMDb API key is missing - check environment variable TMDB_API_KEY")
+                        case .noResults:
+                            print("   ⚠️ No results found for '\(title)' (\(year.map { String($0) } ?? "no year"))")
+                        case .missingImdbID:
+                            print("   ⚠️ TMDb result found but no IMDb ID available")
+                        default:
+                            print("   Error: \(lookupError.localizedDescription)")
+                        }
+                    }
+                }
+            } else {
+                print("✅ Using existing IMDb ID from folder name: \(existingImdbID ?? "")")
+                if year == nil {
+                    let lookupItem = MediaItem(
                         originalFolderURL: url,
                         title: title,
-                        year: year,
-                        imdbID: imdbID,
-                        mediaType: result.mediaType,
-                        episodes: nil,
-                        isManualImdbID: false
+                        year: nil,
+                        imdbID: nil,
+                        mediaType: result.mediaType
                     )
-                } else {
-                    print("⚠️ No IMDb ID found - user can manually enter one")
+                    if let lookupResult = try? await lookupService.resolveImdbResult(for: lookupItem),
+                       let suggestedYear = lookupResult.year {
+                        year = suggestedYear
+                        var episodes = mediaItem.episodes
+                        if mediaItem.mediaType == .tvShow,
+                           let tmdbID = lookupResult.tmdbID,
+                           let currentEpisodes = episodes {
+                            episodes = await lookupService.enrichEpisodesForTVShow(
+                                tmdbID: tmdbID,
+                                episodes: currentEpisodes
+                            )
+                        }
+                        mediaItem = MediaItem(
+                            originalFolderURL: url,
+                            title: title,
+                            year: year,
+                            imdbID: existingImdbID,
+                            mediaType: result.mediaType,
+                            tmdbID: lookupResult.tmdbID,
+                            episodes: episodes,
+                            isManualImdbID: false
+                        )
+                        print("✅ Added missing year from TMDb: \(suggestedYear)")
+                    }
                 }
-            } catch {
-                print("❌ IMDb lookup failed: \(error.localizedDescription)")
-                if let lookupError = error as? ImdbLookupError {
-                    switch lookupError {
-                    case .missingApiKey:
-                        print("   ⚠️ TMDb API key is missing - check environment variable TMDB_API_KEY")
-                    case .noResults:
-                        print("   ⚠️ No results found for '\(title)' (\(year.map { String($0) } ?? "no year"))")
-                    case .missingImdbID:
-                        print("   ⚠️ TMDb result found but no IMDb ID available")
-                    default:
-                        print("   Error: \(lookupError.localizedDescription)")
+
+                if mediaItem.mediaType == .tvShow, mediaItem.tmdbID == nil, let imdbID = existingImdbID {
+                    if let tmdbID = await lookupService.resolveTmdbID(from: imdbID, mediaType: .tvShow) {
+                        print("✅ Resolved TMDb ID from IMDb: \(tmdbID)")
+                        if let episodes = mediaItem.episodes {
+                            let enriched = await lookupService.enrichEpisodesForTVShow(
+                                tmdbID: tmdbID,
+                                episodes: episodes
+                            )
+                            mediaItem = MediaItem(
+                                originalFolderURL: url,
+                                title: title,
+                                year: year,
+                                imdbID: imdbID,
+                                mediaType: mediaItem.mediaType,
+                                tmdbID: tmdbID,
+                                episodes: enriched,
+                                isManualImdbID: false
+                            )
+                        }
                     }
                 }
             }
@@ -330,9 +405,19 @@ class PlexifyViewModel: ObservableObject {
             title = String(title[..<stopIndex])
         }
         
-        // Remove trailing year if still present (handle .2025 or (2025) formats)
+        // Remove embedded tags or any dangling brace fragments
+        if let braceIndex = title.firstIndex(of: "{") {
+            title = String(title[..<braceIndex])
+        }
+        title = title.replacingOccurrences(of: #"\{imdb-[^}]+\}"#, with: "", options: .regularExpression)
+        title = title.replacingOccurrences(of: #"\{tmdb-[^}]+\}"#, with: "", options: .regularExpression)
+        title = title.replacingOccurrences(of: #"\{tvdb-[^}]+\}"#, with: "", options: .regularExpression)
+        title = title.replacingOccurrences(of: #"\{edition-[^}]+\}"#, with: "", options: .regularExpression)
+
+        // Remove year tokens if still present (handle .2025 or (2025) formats)
         title = title.replacingOccurrences(of: #"\.(\d{4})$"#, with: "", options: .regularExpression)
-        title = title.replacingOccurrences(of: #"\((\d{4})\)$"#, with: "", options: .regularExpression)
+        title = title.replacingOccurrences(of: #"\((\d{4})\)"#, with: "", options: .regularExpression)
+        title = title.replacingOccurrences(of: #"\s(19\d{2}|20\d{2})$"#, with: "", options: .regularExpression)
         
         // Clean up trailing dots/spaces
         title = title.trimmingCharacters(in: CharacterSet(charactersIn: ". "))
@@ -390,6 +475,16 @@ class PlexifyViewModel: ObservableObject {
             }
         }
         
+        return nil
+    }
+
+    private func extractImdbID(from folderName: String) -> String? {
+        let pattern = #"\{imdb-(tt\d+)\}"#
+        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: folderName, range: NSRange(folderName.startIndex..., in: folderName)),
+           let idRange = Range(match.range(at: 1), in: folderName) {
+            return String(folderName[idRange])
+        }
         return nil
     }
 }

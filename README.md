@@ -113,7 +113,8 @@ Plexify uses TMDb (The Movie Database) to look up IMDb IDs. You need a free API 
 1. Sign up at [themoviedb.org](https://www.themoviedb.org/)
 2. Go to Settings > API
 3. Request an API key (free)
-4. Add it as an environment variable (see Quick Start above)
+4. Open Plexify Settings and paste the API key (stored securely in Keychain)
+5. (Optional) Add it as an environment variable for local dev (see Quick Start above)
 
 The API key is only used for IMDb lookups and is never stored or transmitted except to TMDb's servers.
 

@@ -245,8 +245,15 @@ struct FolderRenamer {
 
             // Rename files
             for rename in plan.fileRenames {
-                // Find the original file location (in the working folder)
-                let originalFileURL = workingFolderURL.appendingPathComponent(rename.originalURL.lastPathComponent)
+                // Find the original file location (preserve subfolders if present)
+                let originalFileURL: URL
+                let originalPath = rename.originalURL.path
+                if originalPath.hasPrefix(plan.originalFolderURL.path + "/") {
+                    let relativePath = String(originalPath.dropFirst(plan.originalFolderURL.path.count + 1))
+                    originalFileURL = workingFolderURL.appendingPathComponent(relativePath)
+                } else {
+                    originalFileURL = workingFolderURL.appendingPathComponent(rename.originalURL.lastPathComponent)
+                }
                 
                 // Determine target location (season folder for TV shows, root for movies)
                 let targetLocation: URL
@@ -336,4 +343,3 @@ enum RenameError: LocalizedError {
         }
     }
 }
-
