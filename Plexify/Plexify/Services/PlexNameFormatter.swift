@@ -12,7 +12,7 @@ struct PlexNameFormatter {
         var components: [String] = []
         
         // Title
-        let sanitizedTitle = PathSanitizer.sanitize(title)
+        let sanitizedTitle = PathSanitizer.sanitize(sanitizeMovieTitle(title))
         components.append(sanitizedTitle)
         
         // Year in parentheses
@@ -142,6 +142,17 @@ struct PlexNameFormatter {
     }
 
     private static func sanitizeShowTitle(_ title: String) -> String {
+        var cleaned = title
+        if let braceIndex = cleaned.firstIndex(of: "{") {
+            cleaned = String(cleaned[..<braceIndex])
+        }
+        cleaned = cleaned.replacingOccurrences(of: #"\((\d{4})\)"#, with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"\s(19\d{2}|20\d{2})$"#, with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func sanitizeMovieTitle(_ title: String) -> String {
         var cleaned = title
         if let braceIndex = cleaned.firstIndex(of: "{") {
             cleaned = String(cleaned[..<braceIndex])

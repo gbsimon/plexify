@@ -191,6 +191,26 @@ struct FolderRenamer {
             guard fileManager.fileExists(atPath: plan.originalFolderURL.path) else {
                 throw RenameError.applyFailed("Original folder not found or not accessible. Please ensure you have permission to access this folder.")
             }
+
+            var isDirectory: ObjCBool = false
+            _ = fileManager.fileExists(atPath: plan.originalFolderURL.path, isDirectory: &isDirectory)
+
+            if !isDirectory.boolValue {
+                // Single file drop: create folder and move the file inside
+                if !fileManager.fileExists(atPath: targetFolderURL.path) {
+                    try fileManager.createDirectory(at: targetFolderURL, withIntermediateDirectories: true)
+                    operations.append(.createdDirectory(targetFolderURL))
+                }
+
+                if let rename = plan.fileRenames.first {
+                    let targetURL = targetFolderURL.appendingPathComponent(rename.targetName)
+                    print("📝 Moving file into new folder: \(rename.originalURL.lastPathComponent) → \(rename.targetName)")
+                    try fileManager.moveItem(at: plan.originalFolderURL, to: targetURL)
+                    operations.append(.movedFile(from: plan.originalFolderURL, to: targetURL))
+                }
+
+                return
+            }
             
             // Check if target folder already exists
             let targetExists = fileManager.fileExists(atPath: targetFolderURL.path)

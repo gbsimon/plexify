@@ -127,7 +127,7 @@ struct DropZoneView: View {
             print("   Path: \(url.path)")
             print("   Is file URL: \(url.isFileURL)")
             
-            // Verify it's actually a directory
+            // Verify it exists (file or directory)
             var isDirectory: ObjCBool = false
             let fileManager = FileManager.default
             let exists = fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
@@ -137,19 +137,13 @@ struct DropZoneView: View {
             
             guard exists else {
                 DispatchQueue.main.async {
-                    errorMessage = "Folder not found at path: \(url.path)"
+                    errorMessage = "Item not found at path: \(url.path)"
                 }
                 return
             }
-            
-            guard isDirectory.boolValue else {
-                DispatchQueue.main.async {
-                    errorMessage = "Please drop a folder, not a file: \(url.lastPathComponent)"
-                }
-                return
-            }
-            
-            print("✅ Valid folder dropped: \(url.lastPathComponent)")
+
+            let droppedType = isDirectory.boolValue ? "folder" : "file"
+            print("✅ Valid \(droppedType) dropped: \(url.lastPathComponent)")
 
             DispatchQueue.main.async {
                 errorMessage = nil
@@ -182,12 +176,11 @@ struct DropZoneView: View {
             return
         }
         
-        guard isDirectory.boolValue else {
-            errorMessage = "Please select a folder, not a file: \(url.lastPathComponent)"
-            return
+        if isDirectory.boolValue {
+            print("✅ Valid folder selected: \(url.lastPathComponent)")
+        } else {
+            print("✅ Valid file selected: \(url.lastPathComponent)")
         }
-        
-        print("✅ Valid folder selected: \(url.lastPathComponent)")
         
         DispatchQueue.main.async {
             errorMessage = nil

@@ -14,63 +14,34 @@ A macOS app that automatically renames media folders and files to follow Plex-op
 
 ## Screenshots
 
-*Screenshots coming soon*
+![Main screen](screenshots/main.png)
 
 ## Requirements
 
 - macOS 13.0 (Ventura) or later
-- Xcode 15.0 or later
 - TMDb API key (free at [themoviedb.org](https://www.themoviedb.org/))
 
-## Quick Start
+## Installation
 
-### Building from Source
+1. Download the latest `Plexify.app` from the Releases page.
+2. Drag it to your `/Applications` folder.
+3. Right-click > Open on first launch (Gatekeeper).
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/gbsimon/plexify.git
-   cd plexify
-   ```
+## TMDb API Key
 
-2. **Open in Xcode**
-   ```bash
-   open Plexify/Plexify.xcodeproj
-   ```
+Plexify uses TMDb to look up IMDb IDs.
 
-3. **Configure TMDb API Key**
-   - In Xcode, select the `Plexify` scheme
-   - Go to Product > Scheme > Edit Scheme...
-   - Select "Run" in the left sidebar
-   - Go to the "Arguments" tab
-   - Under "Environment Variables", add:
-     - Name: `TMDB_API_KEY`
-     - Value: Your TMDb API key
+1. Sign up at [themoviedb.org](https://www.themoviedb.org/)
+2. Go to Settings > API
+3. Request an API key (free)
+4. Open Plexify Settings (gear icon) and paste the key
 
-4. **Build and Run**
-   - Press `Cmd+R` or click the Run button
-   - The app will launch and you can start renaming folders!
-
-### Command Line Build
-
-```bash
-# Build the app
-xcodebuild -scheme Plexify -configuration Release build
-
-# Run tests
-xcodebuild -scheme Plexify test
-
-# Build for distribution (creates .app bundle)
-xcodebuild -scheme Plexify -configuration Release \
-  -derivedDataPath ./build \
-  build
-```
-
-The built app will be at: `./build/Build/Products/Release/Plexify.app`
+The key is stored securely in your Keychain.
 
 ## Usage
 
 1. **Launch Plexify**
-2. **Drag and drop** a media folder onto the drop zone
+2. **Drag and drop** a media folder or a single media file onto the drop zone
 3. **Review** the rename preview (folder name, files, warnings)
 4. **Edit IMDb ID** if needed (optional)
 5. **Click "Apply Rename"** to execute the changes

@@ -82,10 +82,22 @@ class PlexifyViewModel: ObservableObject {
                 print("⚠️ Warning: Could not access parent directory security-scoped resource")
             }
             
-            await scanFolder(url: url)
+            var isDirectory: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            guard exists else {
+                errorMessage = "Dropped item not found."
+                currentState = .error
+                return
+            }
+
+            if isDirectory.boolValue {
+                await scanFolder(url: url)
+            } else {
+                await scanSingleFile(url: url)
+            }
         }
     }
-    
+
     private func scanFolder(url: URL) async {
         currentState = .scanning
         errorMessage = nil
@@ -249,6 +261,63 @@ class PlexifyViewModel: ObservableObject {
             currentState = .error
         }
     }
+
+    private func scanSingleFile(url: URL) async {
+        currentState = .scanning
+        errorMessage = nil
+
+        print("🔍 Starting scan for file: \(url.path)")
+
+        let fileName = url.deletingPathExtension().lastPathComponent
+        let title = extractTitle(from: fileName)
+        var year = extractYear(from: fileName)
+        let mediaType: MediaType = .movie
+
+        let scanResult = FolderScanner.ScanResult(
+            folderURL: url,
+            mediaType: mediaType,
+            mediaFiles: [url],
+            excludedItems: [],
+            warnings: [],
+            episodes: nil
+        )
+
+        self.scanResult = scanResult
+
+        var mediaItem = MediaItem(
+            originalFolderURL: url,
+            title: title,
+            year: year,
+            imdbID: nil,
+            mediaType: mediaType
+        )
+
+        print("📝 Extracted metadata:")
+        print("   Title: \(title)")
+        print("   Year: \(year ?? 0)")
+
+        print("🔍 Looking up IMDb ID via TMDb API...")
+        if let result = try? await lookupService.resolveImdbResult(for: mediaItem) {
+            print("✅ Found IMDb ID: \(result.imdbID)")
+            if year == nil, let suggestedYear = result.year {
+                year = suggestedYear
+            }
+            mediaItem = MediaItem(
+                originalFolderURL: url,
+                title: title,
+                year: year,
+                imdbID: result.imdbID,
+                mediaType: mediaType,
+                tmdbID: result.tmdbID
+            )
+        } else {
+            print("⚠️ No IMDb ID found - user can manually enter one")
+        }
+
+        let plan = renamer.buildPlan(for: mediaItem, fileURLs: [url])
+        renamePlan = plan
+        currentState = .preview
+    }
     
     func applyRename() {
         guard let plan = renamePlan else { return }
@@ -358,6 +427,19 @@ class PlexifyViewModel: ObservableObject {
             #"\.\d{4}p"#,               // .2160p (resolution)
             #"\.\d{4}\s"#,              // .2025 (year followed by space)
             #"\d{4}p"#,                 // 2160p (resolution at word boundary)
+            #"\b(2160p|1080p|720p|480p)\b"#,
+            #"\bWEB[- ]?DL\b"#,
+            #"\bWEBRIP\b"#,
+            #"\bBLURAY\b"#,
+            #"\bREMUX\b"#,
+            #"\bHDR\b"#,
+            #"\bHEVC\b"#,
+            #"\bX265\b"#,
+            #"\bX264\b"#,
+            #"\bH265\b"#,
+            #"\bH264\b"#,
+            #"\bTRUEHD\b"#,
+            #"\bDTS\b"#,
             #"\.UHD\."#,
             #"\.BluRay"#,
             #"\.REMUX"#,
