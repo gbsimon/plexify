@@ -1,6 +1,6 @@
 import Foundation
 
-enum MediaType {
+enum MediaType: Hashable {
     case movie
     case tvShow
 }

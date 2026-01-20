@@ -50,7 +50,7 @@ Assumptions:
 - On error, rollback to original names.
 - Acceptance: Simulated failure restores originals.
 
-### Epic 3 — IMDb Lookup
+### Epic 3 — IMDb Lookup (DONE)
 3.1 Lookup interface
 - `ImdbLookupClient` protocol with stub.
 - Acceptance: App compiles with stubbed results.
